@@ -57,7 +57,7 @@ I1213 02:17:08.119880       1 main.go:160] ========cluster info stay unchanged, 
 I1213 02:17:08.119890       1 main.go:197] syncCoredns successfully
 ```
 
-## Configmap-Reload
+#### Configmap-Reload
 
 `coredns-sync` supports `configmap-reload` and server `graceful-stop`.
 
@@ -66,7 +66,7 @@ I1213 02:17:08.119890       1 main.go:197] syncCoredns successfully
 2019/12/13 12:15:35 Watching directory: "/etc/coredns/reload"
 2019/12/13 12:16:39 config map updated
 2019/12/13 12:16:41 error: Post http://127.0.0.1:8080/reload: EOF
-# coredns-sync will reload as below:
+# coredns-sync will stop gracefully as below:
 I1213 02:17:08.101588       1 main.go:187] =================== sync coredns loop: 2  =====================
 I1213 02:17:08.119337       1 main.go:192] getClusterDomainList successfully
 I1213 02:17:08.119363       1 main.go:131] cluster domain info: a.xxx.com => 192.168.0.1
