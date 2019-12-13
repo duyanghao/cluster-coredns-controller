@@ -186,8 +186,8 @@ func (csd *corednsSyncDaemon) run() {
 		// go to next loop whether or not succeed
 		loop = (loop + 1) % 100
 		time.Sleep(time.Duration(csd.cfg.DaemonCfg.SyncInterval) * time.Second)
-		// get cluster domain list
 		glog.V(5).Infof("\n\n=================== sync coredns loop: %d =====================", loop)
+		// get cluster domain list
 		clusterList, err := csd.getClusterDomainList()
 		if err != nil {
 			glog.Errorf("getClusterDomainList failure: %v", err)
