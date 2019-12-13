@@ -13,8 +13,21 @@ spec:
         name: coredns-sync
     spec:
       containers:
+      - name: configmap-reload
+        image: jimmidyson/configmap-reload:v0.3.0
+        imagePullPolicy: IfNotPresent
+        args:
+          - --volume-dir=/etc/coredns/reload
+          - --webhook-url=http://127.0.0.1:8080/reload
+        volumeMounts:
+          - name: coredns-sync-config
+            mountPath: /etc/coredns/reload
+            readOnly: true
       - name: coredns-sync
         image: REPLACE_IMAGE
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
         volumeMounts:
         - name: coredns-config-dir
           mountPath: /etc/coredns

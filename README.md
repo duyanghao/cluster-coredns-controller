@@ -13,9 +13,9 @@ A kubernetes-native coredns-sync daemon which helps to synchronize dynamic clust
 * coredns-sync shares disk with coredns(running on the same machines).
 * coredns needs to enable [file](https://coredns.io/plugins/file/) and [reload](https://coredns.io/plugins/reload/) plugins(both of them are internal plugins and compiled into the default CoreDNS).
 
-### Run
+## Run
 
-#### Run external
+### Run external
 
 `coredns-sync` can be run outside of the kubernetes as below:
 
@@ -25,7 +25,7 @@ $ bash hack/start.sh
 
 And in this situation, you may need to keep it high-available by some means.
 
-#### Run internal
+### Run internal
 
 Running `coredns-sync` inside a kubernetes is more convenient compared with the external as [kubernetes daemonset](https://kubernetes.io/zh/docs/concepts/workloads/controllers/daemonset/) helps to keep it high-available.
 
@@ -55,6 +55,38 @@ I1213 02:17:08.119714       1 main.go:131] cluster domain info: b.xxx.com => 192
 I1213 02:17:08.119855       1 main.go:140] zone: /etc/coredns/zones/b.xxx.com content ok
 I1213 02:17:08.119880       1 main.go:160] ========cluster info stay unchanged, there is no need to update coredns========
 I1213 02:17:08.119890       1 main.go:197] syncCoredns successfully
+```
+
+## Configmap-Reload
+
+`coredns-sync` supports `configmap-reload` and server `graceful-stop`.
+
+```bash
+# edit configmap
+2019/12/13 12:15:35 Watching directory: "/etc/coredns/reload"
+2019/12/13 12:16:39 config map updated
+2019/12/13 12:16:41 error: Post http://127.0.0.1:8080/reload: EOF
+# coredns-sync will reload as below:
+I1213 02:17:08.101588       1 main.go:187] =================== sync coredns loop: 2  =====================
+I1213 02:17:08.119337       1 main.go:192] getClusterDomainList successfully
+I1213 02:17:08.119363       1 main.go:131] cluster domain info: a.xxx.com => 192.168.0.1
+I1213 02:17:08.119417       1 main.go:140] zone: /etc/coredns/zones/a.xxx.com content ok
+I1213 02:17:08.119714       1 main.go:131] cluster domain info: b.xxx.com => 192.168.0.2
+I1213 02:17:08.119855       1 main.go:140] zone: /etc/coredns/zones/b.xxx.com content ok
+I1213 02:17:08.119880       1 main.go:160] ========cluster info stay unchanged, there is no need to update coredns========
+I1213 02:17:08.150496       1 main.go:209] syncCoredns successfully
+W1213 02:17:09.674162       1 main.go:234] receive configmap reload ...
+
+
+I1213 02:17:13.101588       1 main.go:187] =================== sync coredns loop: 3  =====================
+I1213 02:17:13.119337       1 main.go:192] getClusterDomainList successfully
+I1213 02:17:13.119363       1 main.go:131] cluster domain info: a.xxx.com => 192.168.0.1
+I1213 02:17:13.119417       1 main.go:140] zone: /etc/coredns/zones/a.xxx.com content ok
+I1213 02:17:13.119714       1 main.go:131] cluster domain info: b.xxx.com => 192.168.0.2
+I1213 02:17:13.119855       1 main.go:140] zone: /etc/coredns/zones/b.xxx.com content ok
+I1213 02:17:13.119880       1 main.go:160] ========cluster info stay unchanged, there is no need to update coredns========
+I1213 02:17:13.150496       1 main.go:209] syncCoredns successfully
+W1213 12:32:13.164836       1 main.go:189] ===== Server Stop! Cause: Config Reload. =====
 ```
 
 ## Refs

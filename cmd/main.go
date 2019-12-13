@@ -180,9 +180,16 @@ func (csd *corednsSyncDaemon) syncCoredns(clusters clusterList) error {
 	return err
 }
 
-func (csd *corednsSyncDaemon) run() {
+func (csd *corednsSyncDaemon) run(ch chan struct{}) {
 	loop := 0
 	for { // run forever
+		// check configmap reload
+		select {
+		case <-ch:
+			glog.Warning("===== Server Stop! Cause: Config Reload. =====")
+			os.Exit(1)
+		default:
+		}
 		// go to next loop whether or not succeed
 		loop = (loop + 1) % 100
 		time.Sleep(time.Duration(csd.cfg.DaemonCfg.SyncInterval) * time.Second)
@@ -220,7 +227,15 @@ func main() {
 		glog.Errorf("create corednsSync daemon failed: %v", err)
 		return
 	}
-	// execute all workers
+	// listen configmap-reload
+	ch := make(chan struct{})
+	go func() {
+		http.HandleFunc("/reload", func(w http.ResponseWriter, r *http.Request) {
+			glog.Warning("receive configmap reload ...")
+			ch <- struct{}{}
+		})
+		http.ListenAndServe(":8080", nil)
+	}()
 	glog.V(5).Infof("Starting coredns sync forever...")
-	csd.run()
+	csd.run(ch)
 }
