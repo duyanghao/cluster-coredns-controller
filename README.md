@@ -11,7 +11,7 @@ A kubernetes-native coredns-sync daemon which helps to synchronize dynamic clust
 ## precondition
 
 * coredns-sync shares disk with coredns(running on the same machines).
-* coredns needs to enable [file](https://coredns.io/plugins/file/) and [reload](https://coredns.io/plugins/reload/) plugins.
+* coredns needs to enable [file](https://coredns.io/plugins/file/) and [reload](https://coredns.io/plugins/reload/) plugins(both of them are internal plugins and compiled into the default CoreDNS).
 
 ### Run
 
@@ -60,3 +60,4 @@ I1213 02:17:08.119890       1 main.go:197] syncCoredns successfully
 ## Refs
 
 * [coredns configuration](https://coredns.io/manual/configuration/)
+* [coredns deploy](https://github.com/coredns/deployment/tree/master/systemd)
