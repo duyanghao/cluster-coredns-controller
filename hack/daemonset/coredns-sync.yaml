@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: coredns-sync
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      name: coredns-sync
+  template:
+    metadata:
+      labels:
+        name: coredns-sync
+    spec:
+      containers:
+      - name: coredns-sync
+        image: REPLACE_IMAGE
+        volumeMounts:
+        - name: coredns-config-dir
+          mountPath: /etc/coredns
+        - name: coredns-sync-config
+          mountPath: /coredns-sync/examples
+          readOnly: true
+      volumes:
+      - name: coredns-config-dir
+        hostPath:
+          path: /tmp/coredns
+      - name: coredns-sync-config
+        configMap:
+          name: coredns-sync

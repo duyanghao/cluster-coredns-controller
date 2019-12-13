@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-sync
+  namespace: kube-system
+data:
+  config.yml: |
+    clusterServerCfg:
+      addr: xxx
+      port: 8080
+      uri: /xxx/domains
+    daemonCfg:
+      maxIdleConns: 100
+      maxIdleConnsPerHost: 100
+      idleConnTimeout: 90
+      syncInterval: 5
+    coreDnsCfg:
+      corefilePath: /tmp/coredns/Corefile
+      zonesDir: /tmp/coredns/zones
+      wildcardDomainSuffix: xxx.com
