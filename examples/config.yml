@@ -8,6 +8,6 @@ daemonCfg:
   idleConnTimeout: 90
   syncInterval: 5
 coreDnsCfg:
-  corefilePath: /tmp/coredns/Corefile
-  zonesDir: /tmp/coredns/zones
+  corefilePath: /etc/coredns/Corefile
+  zonesDir: /etc/coredns/zones
   wildcardDomainSuffix: xxx.com

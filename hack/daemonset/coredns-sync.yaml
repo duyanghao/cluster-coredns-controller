@@ -24,7 +24,7 @@ spec:
       volumes:
       - name: coredns-config-dir
         hostPath:
-          path: /tmp/coredns
+          path: /etc/coredns
       - name: coredns-sync-config
         configMap:
           name: coredns-sync
