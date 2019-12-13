@@ -4,7 +4,7 @@ A kubernetes-native coredns-sync daemon which helps to synchronize dynamic clust
 
 ## Principle
 
-`coredns-sync` is kept as simple as possible to guarantee its stability and the principlef of coredns-sync can be illustrated as follows:
+`coredns-sync` is kept as simple as possible to guarantee its stability, and the principle of coredns-sync can be illustrated as follows:
 
 ![](images/architecture.png)
 
