@@ -59,7 +59,7 @@ I1213 02:17:08.119890       1 main.go:197] syncCoredns successfully
 
 #### Configmap-Reload
 
-`coredns-sync` supports `configmap-reload` and server `graceful-stop`.
+`coredns-sync` supports [configmap-reload](https://hub.docker.com/r/jimmidyson/configmap-reload) and server `graceful-stop` as below:
 
 ```bash
 # edit configmap
@@ -93,3 +93,4 @@ W1213 12:32:13.164836       1 main.go:189] ===== Server Stop! Cause: Config Relo
 
 * [coredns configuration](https://coredns.io/manual/configuration/)
 * [coredns deploy](https://github.com/coredns/deployment/tree/master/systemd)
+* [configmap-reload](https://hub.docker.com/r/jimmidyson/configmap-reload)

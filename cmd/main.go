@@ -22,7 +22,7 @@ var (
 )
 
 type cluster struct {
-	Domain string `json:"name,omitempty"`
+	Domain string `json:"domain,omitempty"`
 	Ip     string `json:"ip,omitempty"`
 }
 
