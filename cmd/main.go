@@ -53,6 +53,7 @@ xxx.  IN A       ip
 `
 
 	corednsServerBlockTemplate string = `xxx:53 {
+    reload INTERVAL JITTER
     file /etc/coredns/zones/xxx
     errors stdout  # show errors
     log stdout     # show query logs
@@ -140,9 +141,10 @@ func (csd *corednsSyncDaemon) syncCoredns(clusters clusterList) error {
 				glog.V(5).Infof("zone: %s content ok", zonePath)
 				// update target server block content
 				targetCorefileContent += strings.ReplaceAll(corednsServerBlockTemplate, "xxx", cluster.Domain)
-				continue
+			} else {
+				glog.Warningf("zone: %s content update, ignores it this time", zonePath)
 			}
-
+			continue
 		}
 		flag = false
 		err := ioutil.WriteFile(zonePath, []byte(targetZoneContent), 0644)
@@ -157,6 +159,14 @@ func (csd *corednsSyncDaemon) syncCoredns(clusters clusterList) error {
 	if flag {
 		coreFileContent, err := ioutil.ReadFile(csd.cfg.CoreDnsCfg.CorefilePath)
 		if err == nil && string(coreFileContent) == targetCorefileContent {
+			// remove unuseful cluster domains - keep numbers
+			zones, _ := ioutil.ReadDir(csd.cfg.CoreDnsCfg.ZonesDir)
+			for _, zone := range zones {
+				if _, ok := seen[zone.Name()]; !ok {
+					glog.V(5).Infof("remove unuseful zone: %s", zone.Name())
+					os.RemoveAll(filepath.Join(csd.cfg.CoreDnsCfg.ZonesDir, zone.Name()))
+				}
+			}
 			glog.V(5).Infof("========cluster info stay unchanged, there is no need to update coredns========")
 			return nil
 		}
@@ -166,7 +176,6 @@ func (csd *corednsSyncDaemon) syncCoredns(clusters clusterList) error {
 		glog.Errorf("write coredns corefile: %s failure: %v", csd.cfg.CoreDnsCfg.CorefilePath, err)
 
 	} else {
-		glog.V(5).Infof("========update coredns corefile: %s successfully========", csd.cfg.CoreDnsCfg.CorefilePath)
 		// remove unuseful cluster domains - keep numbers
 		zones, _ := ioutil.ReadDir(csd.cfg.CoreDnsCfg.ZonesDir)
 		for _, zone := range zones {
@@ -175,12 +184,16 @@ func (csd *corednsSyncDaemon) syncCoredns(clusters clusterList) error {
 				os.RemoveAll(filepath.Join(csd.cfg.CoreDnsCfg.ZonesDir, zone.Name()))
 			}
 		}
-
+		glog.V(5).Infof("========update coredns corefile: %s successfully========", csd.cfg.CoreDnsCfg.CorefilePath)
 	}
 	return err
 }
 
 func (csd *corednsSyncDaemon) run(ch chan struct{}) {
+	// replace corednsServerBlockTemplate for preparation ...
+	corednsServerBlockTemplate = strings.ReplaceAll(corednsServerBlockTemplate, "INTERVAL", csd.cfg.CoreDnsCfg.Interval)
+	corednsServerBlockTemplate = strings.ReplaceAll(corednsServerBlockTemplate, "JITTER", csd.cfg.CoreDnsCfg.Jitter)
+
 	loop := 0
 	for { // run forever
 		// check configmap reload

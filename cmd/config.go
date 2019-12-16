@@ -11,6 +11,8 @@ type coreDnsCfg struct {
 	CorefilePath         string `yaml:"corefilePath,omitempty"`
 	ZonesDir             string `yaml:"zonesDir,omitempty"`
 	WildcardDomainSuffix string `yaml:"wildcardDomainSuffix,omitempty"`
+	Interval             string `yaml:"interval,omitempty"`
+	Jitter               string `yaml:"jitter,omitempty"`
 }
 
 type clusterServerCfg struct {

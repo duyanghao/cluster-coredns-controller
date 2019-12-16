@@ -8,6 +8,16 @@ A kubernetes-native coredns-sync daemon which helps to synchronize dynamic clust
 
 ![](images/architecture.png)
 
+### Details
+
+`coredns-sync` makes coredns use [reload plugin](https://github.com/coredns/coredns/tree/master/plugin/reload) once per Server Block, which allows automatic reload of a changed Corefile. `coredns-sync` will modify the Corefile appropriately for dynamic cluster domains as below:
+
+* domain ADD: ADD Corefile Server Block with relevant zone
+* domain DELETE: DELETE Corefile Server Block with relevant zone
+* domain UPDATE: DELETE zone => ADD zone
+
+After these changes, coredns will reload the Corefile and validate it.
+
 ## precondition
 
 * coredns-sync shares disk with coredns(running on the same machines).

@@ -18,3 +18,5 @@ data:
       corefilePath: /etc/coredns/Corefile
       zonesDir: /etc/coredns/zones
       wildcardDomainSuffix: xxx.com
+      interval: 2s
+      jitter: 1s
