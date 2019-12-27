@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-coredns-controller
+  namespace: tke
+data:
+  config.yml: |
+    clusterServerCfg:
+      masterURL: https://tke-platform-api
+      kubeConfig: /app/conf/tke-platform-config.yaml
+      enableEvent: false
+    coreDnsCfg:
+      corefilePath: /etc/coredns/Corefile
+      zonesDir: /etc/coredns/zones
+      wildcardDomainSuffix:
+      interval: 2s
+      jitter: 1s

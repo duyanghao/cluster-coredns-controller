@@ -1,8 +1,8 @@
 ## Server version
-SERVER_VERSION = v0.1.0
+SERVER_VERSION = v2.0
 ## Folder content generated files
 BUILD_FOLDER = ./build
-PROJECT_URL  = github.com/duyanghao/coredns-sync
+PROJECT_URL  = github.com/duyanghao/cluster-coredns-controller
 ## command
 GO           = go
 GO_VENDOR    = go mod
@@ -17,7 +17,7 @@ UNAME := $(shell uname)
 ################################################
 
 .PHONY: all
-all: build
+all: build test
 
 .PHONY: pre-build
 pre-build:
@@ -26,6 +26,18 @@ pre-build:
 .PHONY: build
 build: pre-build
 	$(MAKE) src.build
+
+.PHONY: test
+test: build
+	$(MAKE) src.test
+
+.PHONY: install
+install:
+	$(MAKE) src.install
+
+.PHONY: clean
+clean: src.clean
+	$(RM) -rf $(BUILD_FOLDER)
 
 ## vendor/ #####################################
 
@@ -37,13 +49,25 @@ download:
 
 .PHONY: src.build
 src.build:
-	cd cmd && GO111MODULE=on $(GO) build -mod=vendor -v -o ../$(BUILD_FOLDER)/coredns-sync/coredns-sync
+	cd cmd/controller && GO111MODULE=on $(GO) build -mod=vendor -v -o ../../$(BUILD_FOLDER)/cluster-coredns-controller/cluster-coredns-controller
+
+.PHONY: src.test
+src.test:
+	$(GO) test -count=1 -v ./worker/...
+
+.PHONY: src.install
+src.install:
+	GO111MODULE=on $(GO) install -v ./worker/...
+
+.PHONY: src.clean
+src.clean:
+	GO111MODULE=on $(GO) clean -i ./worker/...
 
 ## dockerfiles/ ########################################
 
 .PHONY: dockerfiles.build
 dockerfiles.build:
-	docker build --tag duyanghao/coredns-sync:$(SERVER_VERSION) -f ./docker/Dockerfile .
+	docker build --tag duyanghao/cluster-coredns-controller:$(SERVER_VERSION) -f ./docker/Dockerfile .
 
 ## git tag version ########################################
 

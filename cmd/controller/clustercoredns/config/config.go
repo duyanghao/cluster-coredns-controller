@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type coreDnsCfg struct {
+type CoreDnsCfg struct {
 	CorefilePath         string `yaml:"corefilePath,omitempty"`
 	ZonesDir             string `yaml:"zonesDir,omitempty"`
 	WildcardDomainSuffix string `yaml:"wildcardDomainSuffix,omitempty"`
@@ -15,33 +15,22 @@ type coreDnsCfg struct {
 	Jitter               string `yaml:"jitter,omitempty"`
 }
 
-type clusterServerCfg struct {
-	Addr string `yaml:"addr,omitempty"`
-	Port int    `yaml:"port,omitempty"`
-	URI  string `yaml:"uri,omitempty"`
-}
-
-type daemonCfg struct {
-	MaxIdleConns        int `yaml:"maxIdleConns,omitempty"`
-	MaxIdleConnsPerHost int `yaml:"maxIdleConnsPerHost,omitempty"`
-	IdleConnTimeout     int `yaml:"idleConnTimeout,omitempty"`
-	SyncInterval        int `yaml:"syncInterval,omitempty"`
+type ClusterServerCfg struct {
+	// Path to a kubeconfig. Only required if out-of-cluster.
+	MasterURL string `yaml:"masterURL,omitempty"`
+	// The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.
+	KubeConfig string `yaml:"kubeConfig,omitempty"`
+	// Enable event broadcaster
+	EnableEvent bool `yaml:"enableEvent,omitempty"`
 }
 
 type Config struct {
-	ClusterServerCfg *clusterServerCfg `yaml:"clusterServerCfg,omitempty"`
-	DaemonCfg        *daemonCfg        `yaml:"daemonCfg,omitempty"`
-	CoreDnsCfg       *coreDnsCfg       `yaml:"coreDnsCfg,omitempty"`
+	ClusterServerCfg *ClusterServerCfg `yaml:"clusterServerCfg,omitempty"`
+	CoreDnsCfg       *CoreDnsCfg       `yaml:"coreDnsCfg,omitempty"`
 }
 
 // validate the configuration
 func (c *Config) validate() error {
-	if c.DaemonCfg.MaxIdleConns <= 0 || c.DaemonCfg.MaxIdleConnsPerHost <= 0 || c.DaemonCfg.IdleConnTimeout <= 0 || c.DaemonCfg.SyncInterval <= 0 {
-		return fmt.Errorf("invalid daemon configurations, please check ...")
-	}
-	if c.ClusterServerCfg.Addr == "" || c.ClusterServerCfg.URI == "" || c.ClusterServerCfg.Port <= 0 {
-		return fmt.Errorf("invalid cluster server configurations, please check ...")
-	}
 	if c.CoreDnsCfg.CorefilePath == "" || c.CoreDnsCfg.ZonesDir == "" {
 		return fmt.Errorf("invalid coredns path configurations, please check ...")
 	}
