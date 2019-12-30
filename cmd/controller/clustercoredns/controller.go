@@ -94,6 +94,10 @@ func NewController(
 		recorder = eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 	}
 
+	// replace corednsServerBlockTemplate for preparation ...
+	constants.CorednsServerBlockTemplate = strings.ReplaceAll(constants.CorednsServerBlockTemplate, "INTERVAL", controller.cfg.CoreDnsCfg.Interval)
+	constants.CorednsServerBlockTemplate = strings.ReplaceAll(constants.CorednsServerBlockTemplate, "JITTER", controller.cfg.CoreDnsCfg.Jitter)
+
 	controller := &Controller{
 		cfg:              clusterCfg,
 		clusterclientset: clusterclientset,
