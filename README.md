@@ -20,7 +20,7 @@ The details of interaction points of the cluster-coredns-controller with TKE kub
 
 ![](docs/images/interaction.png)
 
-`cluster-coredns-controller` will list all TKE clusters and modify the Corefile appropriately for dynamic cluster domains whenever it receives an event of cluster from kubernetes:
+As `coredns` uses [Declarative Configuration](https://docs.konghq.com/2.0.x/db-less-and-declarative-config/#what-is-declarative-configuration), the `cluster-coredns-controller` will list all TKE clusters and modify the Corefile appropriately for dynamic cluster domains whenever it receives an event of cluster from kubernetes:
 
 * domain ADD: ADD Corefile Server Block with relevant zone
 * domain DELETE: DELETE Corefile Server Block with relevant zone
