@@ -249,7 +249,6 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
-	klog.V(4).Infof("update Corefile of coredns successfully ...")
 	if exist && c.cfg.ClusterServerCfg.EnableEvent {
 		c.recorder.Event(cluster, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	}
@@ -276,18 +275,20 @@ func (c *Controller) updateCorefile() error {
 			klog.V(4).Infof("cluster name: %s is not Running, ignores it ...", cluster.Name)
 			continue
 		}
+		if c.cfg.CoreDnsCfg.WildcardDomainSuffix != "" {
+			cluster.Name = cluster.Name + "." + c.cfg.CoreDnsCfg.WildcardDomainSuffix
+		}
 		if _, ok := seen[cluster.Name]; !ok {
-			if c.cfg.CoreDnsCfg.WildcardDomainSuffix != "" {
-				cluster.Name = cluster.Name + "." + c.cfg.CoreDnsCfg.WildcardDomainSuffix
-			}
 			seen[cluster.Name] = struct{}{}
 			filterClusters = append(filterClusters, cluster)
 		}
 	}
 	// update coredns corefile and zones
 	targetCorefileContent := ""
+	// indicate whether the corefile of coredns needs to be updated
 	flag := true
 	for _, cluster := range filterClusters {
+		delete(seen, cluster.Name)
 		klog.V(4).Infof("cluster domain info: %s => %s", cluster.Name, cluster.Status.Addresses[0].Host)
 		// get target zone content
 		targetZoneContent := strings.ReplaceAll(constants.CorednsZoneTemplate, "xxx", cluster.Name)
@@ -300,6 +301,7 @@ func (c *Controller) updateCorefile() error {
 				klog.V(4).Infof("zone: %s content ok", zonePath)
 				// update target server block content
 				targetCorefileContent += strings.ReplaceAll(constants.CorednsServerBlockTemplate, "xxx", cluster.Name)
+				seen[cluster.Name] = struct{}{}
 			} else {
 				klog.Warningf("zone: %s content update, ignores it this time", zonePath)
 			}
@@ -314,7 +316,9 @@ func (c *Controller) updateCorefile() error {
 		klog.V(4).Infof("write new content to zone: %s successfully", zonePath)
 		// update target server block content
 		targetCorefileContent += strings.ReplaceAll(constants.CorednsServerBlockTemplate, "xxx", cluster.Name)
+		seen[cluster.Name] = struct{}{}
 	}
+
 	if flag {
 		coreFileContent, err := ioutil.ReadFile(c.cfg.CoreDnsCfg.CorefilePath)
 		if err == nil && string(coreFileContent) == targetCorefileContent {
@@ -330,10 +334,7 @@ func (c *Controller) updateCorefile() error {
 			return nil
 		}
 	}
-	// return directly when targetCorefileContent is empty
-	if targetCorefileContent == "" {
-		return nil
-	}
+
 	err = ioutil.WriteFile(c.cfg.CoreDnsCfg.CorefilePath, []byte(targetCorefileContent), 0644)
 	if err != nil {
 		klog.Errorf("write coredns corefile: %s failure: %v", c.cfg.CoreDnsCfg.CorefilePath, err)
