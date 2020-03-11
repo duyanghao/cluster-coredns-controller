@@ -39,11 +39,11 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog"
 
-	clusterscheme "github.com/tkestack/tke/api/client/clientset/versioned/scheme"
-	platformversionedclient "github.com/tkestack/tke/api/client/clientset/versioned/typed/platform/v1"
-	informers "github.com/tkestack/tke/api/client/informers/externalversions/platform/v1"
-	listers "github.com/tkestack/tke/api/client/listers/platform/v1"
-	v1 "github.com/tkestack/tke/api/platform/v1"
+	clusterscheme "tkestack.io/tke/api/client/clientset/versioned/scheme"
+	platformversionedclient "tkestack.io/tke/api/client/clientset/versioned/typed/platform/v1"
+	informers "tkestack.io/tke/api/client/informers/externalversions/platform/v1"
+	listers "tkestack.io/tke/api/client/listers/platform/v1"
+	v1 "tkestack.io/tke/api/platform/v1"
 )
 
 const controllerAgentName = "cluster-coredns-controller"
@@ -94,10 +94,6 @@ func NewController(
 		recorder = eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 	}
 
-	// replace corednsServerBlockTemplate for preparation ...
-	constants.CorednsServerBlockTemplate = strings.ReplaceAll(constants.CorednsServerBlockTemplate, "INTERVAL", controller.cfg.CoreDnsCfg.Interval)
-	constants.CorednsServerBlockTemplate = strings.ReplaceAll(constants.CorednsServerBlockTemplate, "JITTER", controller.cfg.CoreDnsCfg.Jitter)
-
 	controller := &Controller{
 		cfg:              clusterCfg,
 		clusterclientset: clusterclientset,
@@ -106,6 +102,10 @@ func NewController(
 		workqueue:        workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Clusters"),
 		recorder:         recorder,
 	}
+
+	// replace corednsServerBlockTemplate for preparation ...
+	constants.CorednsServerBlockTemplate = strings.ReplaceAll(constants.CorednsServerBlockTemplate, "INTERVAL", controller.cfg.CoreDnsCfg.Interval)
+	constants.CorednsServerBlockTemplate = strings.ReplaceAll(constants.CorednsServerBlockTemplate, "JITTER", controller.cfg.CoreDnsCfg.Jitter)
 
 	klog.Info("Setting up event handlers")
 	// Set up an event handler for when Cluster resources change

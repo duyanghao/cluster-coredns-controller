@@ -30,9 +30,9 @@ import (
 	"github.com/duyanghao/cluster-coredns-controller/cmd/controller/clustercoredns"
 	"github.com/duyanghao/cluster-coredns-controller/cmd/controller/clustercoredns/config"
 	"github.com/duyanghao/cluster-coredns-controller/pkg/signals"
-	versionedclientset "github.com/tkestack/tke/api/client/clientset/versioned"
-	platformversionedclient "github.com/tkestack/tke/api/client/clientset/versioned/typed/platform/v1"
-	versionedinformers "github.com/tkestack/tke/api/client/informers/externalversions"
+	versionedclientset "tkestack.io/tke/api/client/clientset/versioned"
+	platformversionedclient "tkestack.io/tke/api/client/clientset/versioned/typed/platform/v1"
+	versionedinformers "tkestack.io/tke/api/client/informers/externalversions"
 )
 
 var (
