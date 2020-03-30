@@ -112,6 +112,13 @@ func NewController(
 	clusterInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueClusterAdd,
 		UpdateFunc: func(old, new interface{}) {
+			newCluster := new.(*v1.Cluster)
+			oldCluster := old.(*v1.Cluster)
+			if newCluster.ResourceVersion == oldCluster.ResourceVersion {
+				// Periodic resync will send update events for all known Clusters.
+				// Two different versions of the same Cluster will always have different RVs.
+				return
+			}
 			controller.enqueueClusterUpdate(new)
 		},
 		DeleteFunc: controller.enqueueClusterDelete,

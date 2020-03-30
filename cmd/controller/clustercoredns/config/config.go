@@ -16,9 +16,9 @@ type CoreDnsCfg struct {
 }
 
 type ClusterServerCfg struct {
-	// Path to a kubeconfig. Only required if out-of-cluster.
-	MasterURL string `yaml:"masterURL,omitempty"`
 	// The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.
+	MasterURL string `yaml:"masterURL,omitempty"`
+	// Path to a kubeconfig. Only required if out-of-cluster.
 	KubeConfig string `yaml:"kubeConfig,omitempty"`
 	// Enable event broadcaster
 	EnableEvent bool `yaml:"enableEvent,omitempty"`

@@ -18,8 +18,6 @@ package main
 
 import (
 	"flag"
-	"time"
-
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
@@ -66,7 +64,7 @@ func main() {
 		klog.Fatalf("Error building versiond clientset: %s", err.Error())
 	}
 
-	clusterInformerFactory := versionedinformers.NewSharedInformerFactory(versionedClient, time.Second*30)
+	clusterInformerFactory := versionedinformers.NewSharedInformerFactory(versionedClient, 0)
 
 	clusterClient, err := platformversionedclient.NewForConfig(cfg)
 	if err != nil {
