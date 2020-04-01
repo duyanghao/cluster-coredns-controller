@@ -22,6 +22,8 @@ The details of interaction points of the cluster-coredns-controller with TKE kub
 
 As `coredns` uses [Declarative Configuration](https://docs.konghq.com/2.0.x/db-less-and-declarative-config/#what-is-declarative-configuration), the `cluster-coredns-controller` will list all TKE clusters and modify the Corefile and relevant Zonefile appropriately for dynamic cluster domains whenever it receives an event of cluster from kubernetes:
 
+![](docs/images/corefile_example.png)
+
 * domain ADD: add relevant cluster zone item to the Zonefile and update the Corefile 
 * domain DELETE: delete relevant cluster zone item from the Zonefile and update the Corefile
 * domain UPDATE: update relevant cluster zone item in the Zonefile and update the Corefile
@@ -72,8 +74,7 @@ The following table lists the configurable parameters of the `cluster-coredns-co
 | `coreDnsCfg.corefilePath`                                                       | Path to Corefile of coredns                                                                                                                                                                                                                                                                                                              | `/etc/coredns/Corefile`                          |
 | `coreDnsCfg.zonesDir`                                                       | Directory of zones                                                                                                                                                                                                                                                                                                              | `/etc/coredns/zones`                          |
 | `coreDnsCfg.wildcardDomainSuffix`                                                       | wildcardDomainSuffix of Cluster                                                                                                                                                                                                                                                                                                              |                           |
-| `coreDnsCfg.interval`                                                       | Interval of coredns reload                                                                                                                                                                                                                                                                                                              | `2s`                          |
-| `coreDnsCfg.jitter`                                                       | Jitter of coredns reload                                                                                                                                                                                                                                                                                                              | `1s`                          |
+| `coreDnsCfg.interval`                                                       | Interval of coredns reload(s)                                                                                                                                                                                                                                                                                                              | `2`                          |
 
 ## Compatibility
 
