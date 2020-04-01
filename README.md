@@ -10,7 +10,7 @@ This repository implements a [tke-cluster](https://github.com/tkestack/tke) [cor
 
 ## Principle
 
-The cluster-coredns-controller is a kube-like controller(refer to [sample controller](https://github.com/kubernetes/sample-controller)) which watches the Kubernetes API for the TKE Cluster and synchronizes dynamic cluster domains to coredns by updating the Corefile. The principle of cluster-coredns-controller is similar to [ingress-nginx-controller](https://github.com/kubernetes/ingress-nginx) and can be illustrated as follows:
+The cluster-coredns-controller is a kube-like controller(refer to [sample controller](https://github.com/kubernetes/sample-controller)) which watches the Kubernetes API for the TKE Cluster and synchronizes dynamic cluster domains to coredns by updating the Corefile and relevant Zonefile. The principle of cluster-coredns-controller is similar to [ingress-nginx-controller](https://github.com/kubernetes/ingress-nginx) and can be illustrated as follows:
 
 ![](docs/images/architecture.png)
 
@@ -20,11 +20,11 @@ The details of interaction points of the cluster-coredns-controller with TKE kub
 
 ![](docs/images/interaction.png)
 
-As `coredns` uses [Declarative Configuration](https://docs.konghq.com/2.0.x/db-less-and-declarative-config/#what-is-declarative-configuration), the `cluster-coredns-controller` will list all TKE clusters and modify the Corefile appropriately for dynamic cluster domains whenever it receives an event of cluster from kubernetes:
+As `coredns` uses [Declarative Configuration](https://docs.konghq.com/2.0.x/db-less-and-declarative-config/#what-is-declarative-configuration), the `cluster-coredns-controller` will list all TKE clusters and modify the Corefile and relevant Zonefile appropriately for dynamic cluster domains whenever it receives an event of cluster from kubernetes:
 
-* domain ADD: ADD Corefile Server Block with relevant zone
-* domain DELETE: DELETE Corefile Server Block with relevant zone
-* domain UPDATE: DELETE zone => ADD zone
+* domain ADD: add relevant cluster zone item to the Zonefile and update the Corefile 
+* domain DELETE: delete relevant cluster zone item from the Zonefile and update the Corefile
+* domain UPDATE: update relevant cluster zone item in the Zonefile and update the Corefile
 
 `cluster-coredns-controller` makes coredns use [reload plugin](https://github.com/coredns/coredns/tree/master/plugin/reload) once per Server Block, which allows automatic reload of a changed Corefile. After these changes, coredns will reload the Corefile and validate it, and finally customers can have access to relevant TKE kuberentes services by ingress.
 
@@ -83,3 +83,4 @@ HEAD of this repository will match HEAD of [tkestack/tke](https://github.com/tke
 
 * [coredns configuration](https://coredns.io/manual/configuration/)
 * [sample-controller](https://github.com/kubernetes/sample-controller)
+* [tkestack/tke](https://github.com/tkestack/tke)

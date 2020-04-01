@@ -11,8 +11,7 @@ type CoreDnsCfg struct {
 	CorefilePath         string `yaml:"corefilePath,omitempty"`
 	ZonesDir             string `yaml:"zonesDir,omitempty"`
 	WildcardDomainSuffix string `yaml:"wildcardDomainSuffix,omitempty"`
-	Interval             string `yaml:"interval,omitempty"`
-	Jitter               string `yaml:"jitter,omitempty"`
+	Interval             int    `yaml:"interval,omitempty"`
 }
 
 type ClusterServerCfg struct {
@@ -31,8 +30,11 @@ type Config struct {
 
 // validate the configuration
 func (c *Config) validate() error {
-	if c.CoreDnsCfg.CorefilePath == "" || c.CoreDnsCfg.ZonesDir == "" {
-		return fmt.Errorf("invalid coredns path configurations, please check ...")
+	if c.CoreDnsCfg.CorefilePath == "" || c.CoreDnsCfg.ZonesDir == "" || c.CoreDnsCfg.WildcardDomainSuffix == "" {
+		return fmt.Errorf("invalid coredns configurations, please check ...")
+	}
+	if c.CoreDnsCfg.Interval <= 0 || c.CoreDnsCfg.Interval%2 != 0 {
+		return fmt.Errorf("invalid coredns reload interval parameter, please check ...")
 	}
 	// TODO: other configuration validate ...
 	return nil

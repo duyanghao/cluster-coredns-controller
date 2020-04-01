@@ -6,5 +6,4 @@ coreDnsCfg:
   corefilePath: /etc/coredns/Corefile
   zonesDir: /etc/coredns/zones
   wildcardDomainSuffix:
-  interval: 2s
-  jitter: 1s
+  interval: 2

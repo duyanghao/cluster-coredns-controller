@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -103,14 +104,24 @@ func NewController(
 		recorder:         recorder,
 	}
 
-	// replace corednsServerBlockTemplate for preparation ...
-	constants.CorednsServerBlockTemplate = strings.ReplaceAll(constants.CorednsServerBlockTemplate, "INTERVAL", controller.cfg.CoreDnsCfg.Interval)
-	constants.CorednsServerBlockTemplate = strings.ReplaceAll(constants.CorednsServerBlockTemplate, "JITTER", controller.cfg.CoreDnsCfg.Jitter)
+	// replace corednsServerBlockTemplate and corednsServerBlockLoopTemplate for preparation
+	constants.CorednsServerBlockTemplate = strings.ReplaceAll(constants.CorednsServerBlockTemplate, "{INTERVAL}", strconv.Itoa(controller.cfg.CoreDnsCfg.Interval))
+	constants.CorednsServerBlockTemplate = strings.ReplaceAll(constants.CorednsServerBlockTemplate, "{JITTER}", strconv.Itoa(controller.cfg.CoreDnsCfg.Interval/2))
+	constants.CorednsServerBlockTemplate = strings.ReplaceAll(constants.CorednsServerBlockTemplate, "{ZONESDIR}", controller.cfg.CoreDnsCfg.ZonesDir)
+	constants.CorednsServerBlockTemplate = strings.ReplaceAll(constants.CorednsServerBlockTemplate, "{ZONE}", controller.cfg.CoreDnsCfg.WildcardDomainSuffix)
+
+	constants.CorednsServerBlockLoopTemplate = strings.ReplaceAll(constants.CorednsServerBlockLoopTemplate, "{INTERVAL}", strconv.Itoa(controller.cfg.CoreDnsCfg.Interval))
+	constants.CorednsServerBlockLoopTemplate = strings.ReplaceAll(constants.CorednsServerBlockLoopTemplate, "{ZONESDIR}", controller.cfg.CoreDnsCfg.ZonesDir)
+	constants.CorednsServerBlockLoopTemplate = strings.ReplaceAll(constants.CorednsServerBlockLoopTemplate, "{ZONE}", controller.cfg.CoreDnsCfg.WildcardDomainSuffix)
 
 	klog.Info("Setting up event handlers")
 	// Set up an event handler for when Cluster resources change
 	clusterInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: controller.enqueueClusterAdd,
+		AddFunc: func(obj interface{}) {
+			cluster := obj.(*v1.Cluster)
+			klog.V(4).Infof("Watch Cluster: %s Added ...", cluster.Name)
+			controller.enqueueCluster(obj)
+		},
 		UpdateFunc: func(old, new interface{}) {
 			newCluster := new.(*v1.Cluster)
 			oldCluster := old.(*v1.Cluster)
@@ -119,9 +130,14 @@ func NewController(
 				// Two different versions of the same Cluster will always have different RVs.
 				return
 			}
-			controller.enqueueClusterUpdate(new)
+			klog.V(4).Infof("Watch Cluster: %s Updated ...", newCluster.Name)
+			controller.enqueueCluster(new)
 		},
-		DeleteFunc: controller.enqueueClusterDelete,
+		DeleteFunc: func(obj interface{}) {
+			cluster := obj.(*v1.Cluster)
+			klog.V(4).Infof("Watch Cluster: %s Deleted ...", cluster.Name)
+			controller.enqueueCluster(obj)
+		},
 	})
 
 	return controller
@@ -252,7 +268,7 @@ func (c *Controller) syncHandler(key string) error {
 	// current state of the world
 	err = c.updateCorefile()
 	if err != nil {
-		klog.Errorf("update Corefile of coredns failed: %s", err.Error())
+		klog.Errorf("Sync coredns failed: %s", err.Error())
 		return err
 	}
 
@@ -262,6 +278,8 @@ func (c *Controller) syncHandler(key string) error {
 	return nil
 }
 
+// updateCorefile is a function that updates the coredns Corefile and relevant zones when there is any change of cluster
+// attention: we update Corefile on a loop to trigger coredns reload action when change happens
 func (c *Controller) updateCorefile() error {
 	// get cluster list ...
 	clusterList, err := c.clusterclientset.List(metav1.ListOptions{})
@@ -269,134 +287,117 @@ func (c *Controller) updateCorefile() error {
 		klog.Errorf("List Cluster failure: %s", err.Error())
 		return err
 	}
-	// do sync coredns Corefile ...
-	// remove duplicate values from clusterList, unuseful most likely, just for double-check :)
+
+	// construct target zone content
+	targetZoneContent := strings.ReplaceAll(constants.CorednsZoneTemplate, "{ZONE}", c.cfg.CoreDnsCfg.WildcardDomainSuffix)
 	seen := make(map[string]struct{})
-	filterClusters := make([]v1.Cluster, 0)
 	for _, cluster := range clusterList.Items {
 		if cluster.Name == "" || len(cluster.Status.Addresses) == 0 || cluster.Status.Addresses[0].Host == "" {
-			klog.V(4).Infof("cluster name: %s address: %s(invalid), ignores it ...", cluster.Name, cluster.Status.Addresses[0].Host)
+			klog.V(4).Infof("Cluster name: %s address: %s(invalid), ignores it ...", cluster.Name, cluster.Status.Addresses[0].Host)
 			continue
 		}
 		if cluster.Status.Phase != v1.ClusterRunning {
-			klog.V(4).Infof("cluster name: %s is not Running, ignores it ...", cluster.Name)
+			klog.V(4).Infof("Cluster name: %s is not Running, ignores it ...", cluster.Name)
 			continue
 		}
-		if c.cfg.CoreDnsCfg.WildcardDomainSuffix != "" {
-			cluster.Name = cluster.Name + "." + c.cfg.CoreDnsCfg.WildcardDomainSuffix
-		}
+		cluster.Name = cluster.Name + "." + c.cfg.CoreDnsCfg.WildcardDomainSuffix
 		if _, ok := seen[cluster.Name]; !ok {
+			klog.V(4).Infof("Cluster domain info: %s => %s", cluster.Name, cluster.Status.Addresses[0].Host)
+			corednsZoneItem := strings.ReplaceAll(constants.CorednsZoneItemTemplate, "{ZONE}", cluster.Name)
+			corednsZoneItem = strings.ReplaceAll(corednsZoneItem, "{IP}", cluster.Status.Addresses[0].Host)
+			targetZoneContent += corednsZoneItem
 			seen[cluster.Name] = struct{}{}
-			filterClusters = append(filterClusters, cluster)
 		}
 	}
-	// update coredns corefile and zones
-	targetCorefileContent := ""
-	// indicate whether the corefile of coredns needs to be updated
-	flag := true
-	for _, cluster := range filterClusters {
-		delete(seen, cluster.Name)
-		klog.V(4).Infof("cluster domain info: %s => %s", cluster.Name, cluster.Status.Addresses[0].Host)
-		// get target zone content
-		targetZoneContent := strings.ReplaceAll(constants.CorednsZoneTemplate, "xxx", cluster.Name)
-		targetZoneContent = strings.ReplaceAll(targetZoneContent, "ip", cluster.Status.Addresses[0].Host)
-		// check exists
-		zonePath := filepath.Join(c.cfg.CoreDnsCfg.ZonesDir, cluster.Name)
-		if _, err := os.Stat(zonePath); err == nil { // exists
-			zoneContent, err := ioutil.ReadFile(zonePath)
-			if err == nil && string(zoneContent) == targetZoneContent {
-				klog.V(4).Infof("zone: %s content ok", zonePath)
-				// update target server block content
-				targetCorefileContent += strings.ReplaceAll(constants.CorednsServerBlockTemplate, "xxx", cluster.Name)
-				seen[cluster.Name] = struct{}{}
-			} else {
-				klog.Warningf("zone: %s content update, ignores it this time", zonePath)
-			}
-			continue
-		}
-		flag = false
-		err := ioutil.WriteFile(zonePath, []byte(targetZoneContent), 0644)
-		if err != nil {
-			klog.Errorf("write zone: %s failure: %v", zonePath, err)
-			continue
-		}
-		klog.V(4).Infof("write new content to zone: %s successfully", zonePath)
-		// update target server block content
-		targetCorefileContent += strings.ReplaceAll(constants.CorednsServerBlockTemplate, "xxx", cluster.Name)
-		seen[cluster.Name] = struct{}{}
+	if targetZoneContent == "" {
+		klog.Warning("No cluster found, ignores this item ...")
+		return nil
 	}
 
-	if flag {
-		coreFileContent, err := ioutil.ReadFile(c.cfg.CoreDnsCfg.CorefilePath)
-		if err == nil && string(coreFileContent) == targetCorefileContent {
-			// remove unuseful cluster domains - keep numbers
-			zones, _ := ioutil.ReadDir(c.cfg.CoreDnsCfg.ZonesDir)
-			for _, zone := range zones {
-				if _, ok := seen[zone.Name()]; !ok {
-					klog.V(4).Infof("remove unuseful zone: %s", zone.Name())
-					os.RemoveAll(filepath.Join(c.cfg.CoreDnsCfg.ZonesDir, zone.Name()))
-				}
+	// judge whether or not any cluster change happens and update zone relevantly
+	flag := false // default no change
+	zonePath := filepath.Join(c.cfg.CoreDnsCfg.ZonesDir, c.cfg.CoreDnsCfg.WildcardDomainSuffix)
+	if zoneContent, err := ioutil.ReadFile(zonePath); err != nil { // not yet exist or error happens
+		if os.IsNotExist(err) {
+			// create zoneFile
+			klog.V(4).Infof("Zone: %s does not yet exist, try to create it ...", zonePath)
+			if err = ioutil.WriteFile(zonePath, []byte(targetZoneContent), 0644); err != nil {
+				klog.Errorf("Write zone: %s failure: %s", zonePath, err.Error())
+				return err
 			}
-			klog.V(4).Infof("========cluster info stay unchanged, there is no need to update coredns========")
-			return nil
+			klog.V(4).Infof("Zone: %s created successfully", zonePath)
+			flag = true
+		} else {
+			klog.Errorf("Read zone: %s failure: %s", zonePath, err.Error())
+			return err
+		}
+	} else { // exist
+		// compare zoneContent to judge whether or not there is any change
+		if string(zoneContent) != targetZoneContent {
+			klog.V(4).Infof("Zone: %s found change, try to update it ...", zonePath)
+			if err = ioutil.WriteFile(zonePath, []byte(targetZoneContent), 0644); err != nil {
+				klog.Errorf("Overwrite zone: %s failure: %s", zonePath, err.Error())
+				return err
+			}
+			klog.V(4).Infof("Zone: %s updated successfully", zonePath)
+			flag = true
+		} else {
+			klog.V(4).Infof("No change found for zone: %s", zonePath)
 		}
 	}
 
-	err = ioutil.WriteFile(c.cfg.CoreDnsCfg.CorefilePath, []byte(targetCorefileContent), 0644)
-	if err != nil {
-		klog.Errorf("write coredns corefile: %s failure: %v", c.cfg.CoreDnsCfg.CorefilePath, err)
+	// update coredns Corefile according to flag
+	if corefileBytes, err := ioutil.ReadFile(c.cfg.CoreDnsCfg.CorefilePath); err != nil {
+		klog.Errorf("Read Corefile: %s failure: %s", c.cfg.CoreDnsCfg.CorefilePath, err.Error())
+		return err
 	} else {
-		// remove unuseful cluster domains - keep numbers
-		zones, _ := ioutil.ReadDir(c.cfg.CoreDnsCfg.ZonesDir)
-		for _, zone := range zones {
-			if _, ok := seen[zone.Name()]; !ok {
-				klog.V(4).Infof("remove unuseful zone: %s", zone.Name())
-				os.RemoveAll(filepath.Join(c.cfg.CoreDnsCfg.ZonesDir, zone.Name()))
+		corefileContent := string(corefileBytes)
+		if strings.Contains(corefileContent, constants.CorednsServerBlockTemplate) {
+			if flag {
+				// replace relevant server block on a loop
+				klog.V(4).Infof("Try to replace Corefile: %s on a loop...", c.cfg.CoreDnsCfg.CorefilePath)
+				corefileContent = strings.ReplaceAll(corefileContent, constants.CorednsServerBlockTemplate, constants.CorednsServerBlockLoopTemplate)
+				if err = ioutil.WriteFile(c.cfg.CoreDnsCfg.CorefilePath, []byte(corefileContent), 0644); err != nil {
+					klog.Errorf("Overwrite Corefile: %s failure: %s", c.cfg.CoreDnsCfg.CorefilePath, err.Error())
+					return err
+				}
+				klog.V(4).Infof("Replace Corefile: %s successfully", c.cfg.CoreDnsCfg.CorefilePath)
 			}
+		} else if strings.Contains(corefileContent, constants.CorednsServerBlockLoopTemplate) {
+			if flag {
+				// replace relevant server block on a loop
+				klog.V(4).Infof("Try to replace Corefile: %s on a loop...", c.cfg.CoreDnsCfg.CorefilePath)
+				corefileContent = strings.ReplaceAll(corefileContent, constants.CorednsServerBlockLoopTemplate, constants.CorednsServerBlockTemplate)
+				if err = ioutil.WriteFile(c.cfg.CoreDnsCfg.CorefilePath, []byte(corefileContent), 0644); err != nil {
+					klog.Errorf("Overwrite Corefile: %s failure: %s", c.cfg.CoreDnsCfg.CorefilePath, err.Error())
+					return err
+				}
+				klog.V(4).Infof("Replace Corefile: %s successfully", c.cfg.CoreDnsCfg.CorefilePath)
+			}
+		} else {
+			// try to create relevant server block
+			corefileContent = constants.CorednsServerBlockTemplate + corefileContent
+			klog.V(4).Infof("Try to add server block: %s to Corefile: %s", c.cfg.CoreDnsCfg.WildcardDomainSuffix, c.cfg.CoreDnsCfg.CorefilePath)
+			if err = ioutil.WriteFile(c.cfg.CoreDnsCfg.CorefilePath, []byte(corefileContent), 0644); err != nil {
+				klog.Errorf("Overwrite Corefile: %s failure: %s", c.cfg.CoreDnsCfg.CorefilePath, err.Error())
+				return err
+			}
+			klog.V(4).Infof("Add server block: %s to Corefile: %s successfully", c.cfg.CoreDnsCfg.WildcardDomainSuffix, c.cfg.CoreDnsCfg.CorefilePath)
 		}
-		klog.V(4).Infof("========update coredns corefile: %s successfully========", c.cfg.CoreDnsCfg.CorefilePath)
 	}
-	return err
+
+	return nil
 }
 
-// enqueueClusterAdd takes a Cluster resource and converts it into a namespace/name
+// enqueueCluster takes a Cluster resource and converts it into a namespace/name
 // string which is then put onto the work queue. This method should *not* be
 // passed resources of any type other than Cluster.
-func (c *Controller) enqueueClusterAdd(obj interface{}) {
+func (c *Controller) enqueueCluster(obj interface{}) {
 	var key string
 	var err error
 	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
 		utilruntime.HandleError(err)
 		return
 	}
-	klog.V(4).Infof("Watch Cluster: %s Added ...", key)
-	c.workqueue.Add(key)
-}
-
-// enqueueClusterUpdate takes a Cluster resource and converts it into a namespace/name
-// string which is then put onto the work queue. This method should *not* be
-// passed resources of any type other than Cluster.
-func (c *Controller) enqueueClusterUpdate(obj interface{}) {
-	var key string
-	var err error
-	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
-		utilruntime.HandleError(err)
-		return
-	}
-	klog.V(4).Infof("Watch Cluster: %s Updated ...", key)
-	c.workqueue.Add(key)
-}
-
-// enqueueClusterDelete takes a Cluster resource and converts it into a namespace/name
-// string which is then put onto the work queue. This method should *not* be
-// passed resources of any type other than Cluster.
-func (c *Controller) enqueueClusterDelete(obj interface{}) {
-	var key string
-	var err error
-	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
-		utilruntime.HandleError(err)
-		return
-	}
-	klog.V(4).Infof("Watch Cluster: %s Deleted ...", key)
 	c.workqueue.Add(key)
 }
