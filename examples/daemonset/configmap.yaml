@@ -6,8 +6,8 @@ metadata:
 data:
   config.yml: |
     clusterServerCfg:
-      masterURL: https://tke-platform-api
-      kubeConfig: /app/conf/tke-platform-config.yaml
+      masterURL:
+      kubeConfig:
       enableEvent: false
     coreDnsCfg:
       corefilePath: /etc/coredns/Corefile

@@ -22,8 +22,6 @@ spec:
         - name: cluster-coredns-controller-config
           mountPath: /cluster-coredns-controller/examples
           readOnly: true
-        - name: config-volume
-          mountPath: /app/conf
       volumes:
       - name: coredns-config-dir
         hostPath:
@@ -31,7 +29,3 @@ spec:
       - name: cluster-coredns-controller-config
         configMap:
           name: cluster-coredns-controller
-      - name: config-volume
-        configMap:
-          name: tke-platform-controller
-          defaultMode: 420
