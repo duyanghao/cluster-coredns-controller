@@ -31,10 +31,10 @@ type Config struct {
 // validate the configuration
 func (c *Config) validate() error {
 	if c.CoreDnsCfg.CorefilePath == "" || c.CoreDnsCfg.ZonesDir == "" || c.CoreDnsCfg.WildcardDomainSuffix == "" {
-		return fmt.Errorf("invalid coredns configurations, please check ...")
+		return fmt.Errorf("Invalid coredns configurations, please check ...")
 	}
 	if c.CoreDnsCfg.Interval <= 0 || c.CoreDnsCfg.Interval%2 != 0 {
-		return fmt.Errorf("invalid coredns reload interval parameter, please check ...")
+		return fmt.Errorf("Invalid coredns reload interval parameter, please check ...")
 	}
 	// TODO: other configuration validate ...
 	return nil
@@ -47,13 +47,13 @@ func LoadConfig(path string) (*Config, error) {
 	c := &Config{}
 	contents, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read configuration file: %s,error: %s", path, err)
+		return nil, fmt.Errorf("Failed to read configuration file: %s, error: %s", path, err)
 	}
 	if err = yaml.Unmarshal(contents, c); err != nil {
-		return nil, fmt.Errorf("Failed to parse configuration,error: %s", err)
+		return nil, fmt.Errorf("Failed to parse configuration, error: %s", err)
 	}
 	if err = c.validate(); err != nil {
-		return nil, fmt.Errorf("Invalid configuration,error: %s", err)
+		return nil, fmt.Errorf("Invalid configuration, error: %s", err)
 	}
 	return c, nil
 }

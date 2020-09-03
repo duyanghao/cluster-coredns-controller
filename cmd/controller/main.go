@@ -29,7 +29,6 @@ import (
 	"github.com/duyanghao/cluster-coredns-controller/cmd/controller/clustercoredns/config"
 	"github.com/duyanghao/cluster-coredns-controller/pkg/signals"
 	versionedclientset "tkestack.io/tke/api/client/clientset/versioned"
-	platformversionedclient "tkestack.io/tke/api/client/clientset/versioned/typed/platform/v1"
 	versionedinformers "tkestack.io/tke/api/client/informers/externalversions"
 )
 
@@ -66,12 +65,7 @@ func main() {
 
 	clusterInformerFactory := versionedinformers.NewSharedInformerFactory(versionedClient, 0)
 
-	clusterClient, err := platformversionedclient.NewForConfig(cfg)
-	if err != nil {
-		klog.Fatalf("Error building cluster clientset: %s", err.Error())
-	}
-
-	controller := clustercoredns.NewController(clusterCorednsCfg, kubeClient, clusterClient.Clusters(), clusterInformerFactory.Platform().V1().Clusters())
+	controller := clustercoredns.NewController(clusterCorednsCfg, kubeClient, versionedClient.PlatformV1().Clusters(), clusterInformerFactory.Platform().V1().Clusters())
 
 	// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
 	// Start method is non-blocking and runs all registered informers in a dedicated goroutine.

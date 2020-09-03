@@ -17,6 +17,7 @@ limitations under the License.
 package clustercoredns
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -282,7 +283,7 @@ func (c *Controller) syncHandler(key string) error {
 // attention: we update Corefile on a loop to trigger coredns reload action when change happens
 func (c *Controller) updateCorefile() error {
 	// get cluster list ...
-	clusterList, err := c.clusterclientset.List(metav1.ListOptions{})
+	clusterList, err := c.clusterclientset.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		klog.Errorf("List Cluster failure: %s", err.Error())
 		return err
@@ -292,19 +293,25 @@ func (c *Controller) updateCorefile() error {
 	targetZoneContent := strings.ReplaceAll(constants.CorednsZoneTemplate, "{ZONE}", c.cfg.CoreDnsCfg.WildcardDomainSuffix)
 	seen := make(map[string]struct{})
 	for _, cluster := range clusterList.Items {
-		if cluster.Name == "" || len(cluster.Status.Addresses) == 0 || cluster.Status.Addresses[0].Host == "" {
-			klog.V(4).Infof("Cluster name: %s address: %s(invalid), ignores it ...", cluster.Name, cluster.Status.Addresses[0].Host)
+		if cluster.Name == "" || len(cluster.Status.Addresses) == 0 {
+			klog.V(4).Infof("Cluster: %s invalid, ignores it ...", cluster.Name)
 			continue
 		}
 		if cluster.Status.Phase != v1.ClusterRunning {
-			klog.V(4).Infof("Cluster name: %s is not Running, ignores it ...", cluster.Name)
+			klog.V(4).Infof("Cluster: %s is not Running, ignores it ...", cluster.Name)
 			continue
 		}
 		cluster.Name = cluster.Name + "." + c.cfg.CoreDnsCfg.WildcardDomainSuffix
 		if _, ok := seen[cluster.Name]; !ok {
-			klog.V(4).Infof("Cluster domain info: %s => %s", cluster.Name, cluster.Status.Addresses[0].Host)
+			clusterLB := cluster.Status.Addresses[0].Host
+			for _, addr := range cluster.Status.Addresses {
+				if addr.Type == v1.AddressAdvertise {
+					clusterLB = addr.Host
+				}
+			}
+			klog.V(4).Infof("Cluster domain info: %s => %s", cluster.Name, clusterLB)
 			corednsZoneItem := strings.ReplaceAll(constants.CorednsZoneItemTemplate, "{ZONE}", cluster.Name)
-			corednsZoneItem = strings.ReplaceAll(corednsZoneItem, "{IP}", cluster.Status.Addresses[0].Host)
+			corednsZoneItem = strings.ReplaceAll(corednsZoneItem, "{IP}", clusterLB)
 			targetZoneContent += corednsZoneItem
 			seen[cluster.Name] = struct{}{}
 		}
